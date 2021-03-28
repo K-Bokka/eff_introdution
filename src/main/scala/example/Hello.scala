@@ -1,11 +1,15 @@
 package example
 
-import cats.data.OptionT
+import cats._
+import data._
 import cats.implicits._
+import org.atnos.eff._
+import org.atnos.eff.all._
+import org.atnos.eff.syntax.all._
 
 object Hello extends Greeting with App {
   List(1, 2, 3)
-    .map(greetUserT(_))
+    .map(greetUserEff(_))
     .foreach {
       case Left(error) => println(error)
       case Right(Some(name)) => println(name)
@@ -37,6 +41,21 @@ trait Greeting {
       name <- OptionT.fromOption[StringEither](user.name)
     } yield s"Hello! $name").value
 
+  // Eff
+  type _stringEither[R] = StringEither |= R
+  type Stack = Fx.fx2[Option, StringEither]
+
+  def greetProgram[R: _stringEither : _option](id: Long): Eff[R, String] =
+    for {
+      user <- either.fromEither(getUser(id))
+      name <- fromOption(user.name)
+    } yield s"Hello! $name"
+
+  def greetUserEff(id: Long): Either[String, Option[String]] =
+    greetProgram[Stack](id)
+      .runOption
+      .runEither[String]
+      .run
 }
 
 case class User(id: Long, name: Option[String])
