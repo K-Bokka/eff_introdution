@@ -1,8 +1,11 @@
 package example
 
+import cats.data.OptionT
+import cats.implicits._
+
 object Hello extends Greeting with App {
   List(1, 2, 3)
-    .map(greetUser(_))
+    .map(greetUserT(_))
     .foreach {
       case Left(error) => println(error)
       case Right(Some(name)) => println(name)
@@ -24,6 +27,16 @@ trait Greeting {
     } yield for {
       name <- user.name
     } yield s"Hello! $name."
+
+  // Monad Transform
+  type StringEither[A] = Either[String, A]
+
+  def greetUserT(id: Long): Either[String, Option[String]] =
+    (for {
+      user <- OptionT.liftF(getUser(id))
+      name <- OptionT.fromOption[StringEither](user.name)
+    } yield s"Hello! $name").value
+
 }
 
 case class User(id: Long, name: Option[String])
